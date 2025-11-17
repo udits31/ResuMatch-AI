@@ -1,6 +1,4 @@
 
-"""Unified Resume Platform - Main Flask Application"""
-
 import os
 import sys
 from flask import Flask, render_template, request, jsonify
@@ -279,7 +277,7 @@ def check_database_connection():
 
 if __name__ == '__main__':
     print("\n" + "="*50)
-    print("Unified Resume Platform")
+    print("ResuMatch AI")
     print("="*50)
     
     # Check database connection on startup

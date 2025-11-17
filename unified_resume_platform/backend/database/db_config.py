@@ -7,7 +7,7 @@ import os
 DB_CONFIG = {
     'host': 'localhost',
     'user': 'root',
-    'password': 'shrey123',  # ← Updated with actual MySQL password
+    'password': 'root123',  # ← Updated with actual MySQL password
     'database': 'unified_resume_portal',
     'autocommit': False
 }

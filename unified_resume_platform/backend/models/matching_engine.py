@@ -95,8 +95,7 @@ class ResumeMatcher:
             else:
                 skill_match_ratio = 0
             
-            # Combined score (70% content similarity + 30% skill match)
-            final_score = (match_score * 0.4) + (skill_match_ratio * 0.6)
+            final_score = (match_score * 0.3) + (skill_match_ratio * 0.7)
             
             return final_score, resume_skills, jd_skills
             

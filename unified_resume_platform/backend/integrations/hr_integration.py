@@ -33,11 +33,11 @@ class HRIntegration:
             return []
     
     def get_job_descriptions_from_db(self):
-        """Fetch all job descriptions from database"""
+        """Fetch all job descriptions from database, excluding auto-generated 'Analyzed Job' entries"""
         try:
             if self.db_manager.connect():
                 cursor = self.db_manager.connection.cursor(dictionary=True)
-                cursor.execute("SELECT job_id, job_title, company_name FROM job_descriptions WHERE status = 'active' ORDER BY posted_at DESC")
+                cursor.execute("SELECT job_id, job_title, company_name FROM job_descriptions WHERE status = 'active' AND NOT (job_title = 'Analyzed Job' AND company_name = 'Company') ORDER BY posted_at DESC")
                 job_descriptions = cursor.fetchall()
                 cursor.close()
                 self.db_manager.disconnect()

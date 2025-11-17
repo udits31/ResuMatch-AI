@@ -1,50 +1,94 @@
 {
   "personal_info": {
-    "name": "Shrey Parekh",
-    "email": "shreyparekh3@gmail.com",
-    "phone": "9820674568",
-    "linkedin": "https://www.linkedin.com/in/shrey-parekh-599a44276/",
-    "address": "B/102, Ektabhoomi,"
+    "name": "Aarav Mehta",
+    "email": "aarav.mehta@example.com",
+    "phone": "+91-9876543210",
+    "linkedin": "https://www.linkedin.com/in/aarav-mehta/",
+    "address": "Flat 302, Skyline Heights, Andheri West, Mumbai, India"
   },
-  "summary": "This is a test summary ",
+  "summary": "Results-driven software engineer with strong experience in full-stack development, cloud infrastructure, and AI-based automation. Skilled in designing scalable systems and collaborating with cross-functional teams to deliver high-quality solutions.",
   "work_experience": [
     {
-      "company": "xyx",
-      "position": "dasda",
-      "start_date": "2005-02",
+      "company": "TechNova Solutions",
+      "position": "Software Engineer",
+      "start_date": "2022-07",
       "end_date": "Present",
-      "description": "",
+      "description": "Designing and developing backend APIs using Python (FastAPI) and Node.js. Managing deployments on AWS and integrating CI/CD pipelines.",
       "achievements": [
-        "none"
+        "Reduced API response time by 35% through query optimization",
+        "Implemented automated testing framework reducing bugs in production by 40%"
+      ]
+    },
+    {
+      "company": "CodeWorks Labs",
+      "position": "Backend Developer Intern",
+      "start_date": "2021-01",
+      "end_date": "2022-06",
+      "description": "Assisted in building RESTful APIs and performed data cleaning for analytics pipelines.",
+      "achievements": [
+        "Created reusable API templates that accelerated feature rollout by 20%"
       ]
     }
   ],
   "education": [
     {
-      "institution": "NMIMS",
-      "degree": "BTECH",
-      "field": "Computer Science",
-      "graduation_date": "2027-06",
-      "gpa": 3.7
+      "institution": "Indian Institute of Technology Bombay",
+      "degree": "Bachelor of Technology",
+      "field": "Computer Science and Engineering",
+      "graduation_date": "2026-05",
+      "gpa": 8.9
     }
   ],
   "skills": {
     "technical": [
-      "python",
-      "c",
-      "rust",
-      "git"
+      "Python",
+      "JavaScript",
+      "React",
+      "Node.js",
+      "Docker",
+      "AWS",
+      "SQL",
+      "Git"
     ],
     "soft": [
-      "communication"
+      "Leadership",
+      "Problem-solving",
+      "Team Collaboration",
+      "Time Management"
     ],
     "languages": [
       "English",
-      "hindi"
+      "Hindi",
+      "Marathi"
     ],
-    "certifications": []
+    "certifications": [
+      "AWS Certified Developer – Associate",
+      "Google Data Analytics Professional Certificate"
+    ]
   },
-  "projects": [],
-  "created_at": "2025-10-31T00:52:04.364591",
-  "updated_at": "2025-10-31T00:52:04.364600"
+  "projects": [
+    {
+      "title": "AI Resume Analyzer",
+      "description": "Developed a Flask-based web app that uses NLP to match resumes with job descriptions using TF-IDF and cosine similarity.",
+      "technologies": [
+        "Python",
+        "Flask",
+        "Scikit-learn",
+        "HTML/CSS/JS"
+      ],
+      "github": "https://github.com/aaravmehta/ai-resume-analyzer"
+    },
+    {
+      "title": "Smart Expense Tracker",
+      "description": "Built a mobile app that uses OCR and Firebase to automatically log and categorize expenses from receipts.",
+      "technologies": [
+        "React Native",
+        "Firebase",
+        "TensorFlow Lite"
+      ],
+      "github": "https://github.com/aaravmehta/expense-tracker"
+    }
+  ],
+  "created_at": "2025-10-31T09:15:00.000000",
+  "updated_at": "2025-10-31T09:15:00.000000"
 }

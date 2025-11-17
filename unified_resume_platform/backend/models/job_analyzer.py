@@ -47,13 +47,11 @@ class JobAnalyzer:
         # Convert to lowercase for processing
         text = job_description.lower()
         
-        # Extract technical skills using patterns
         technical_keywords = []
         for pattern in self.skill_patterns:
             matches = re.findall(pattern, text, re.IGNORECASE)
             technical_keywords.extend(matches)
         
-        # Extract general keywords (2-3 word phrases and single words)
         # Remove punctuation and split into words
         cleaned_text = re.sub(r'[^\w\s]', ' ', text)
         words = cleaned_text.split()
@@ -74,13 +72,10 @@ class JobAnalyzer:
                 three_word = f"{filtered_words[i]} {filtered_words[i+1]} {filtered_words[i+2]}"
                 phrases.append(three_word)
         
-        # Combine all keywords
         all_keywords = technical_keywords + filtered_words + phrases
         
-        # Count frequency and return top keywords
         keyword_counts = Counter(all_keywords)
         
-        # Return top 20 keywords sorted by frequency
         return [keyword for keyword, count in keyword_counts.most_common(20)]
     
     def identify_requirements(self, job_description: str) -> Dict[str, Any]:
