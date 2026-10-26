@@ -340,7 +340,7 @@ body.light-mode {
     margin-left: auto;
     margin-right: auto;
     }
-}
+
 
 .hero-buttons {
     display: flex;
@@ -1340,16 +1340,19 @@ body.light-mode {
 .keywords-list {
     display: flex;
     flex-wrap: wrap;
-    gap: var(--spacing-xs);
+    gap: 8px;
 }
 
 .keyword-tag {
-    padding: var(--spacing-xs) var(--spacing-sm);
+    display: inline-block;
+    padding: 4px 12px;
     background: var(--secondary-color);
-    color: var(--white);
+    color: var(--text-primary);
     border-radius: 15px;
     font-size: var(--font-size-small);
     font-weight: 500;
+    line-height: 1.5;
+    white-space: nowrap;
 }
 
 .info-text {
@@ -3324,7 +3327,7 @@ textarea:focus {
         min-width: 120px;
         font-size: var(--font-size-xs);
     }
-}/
+}
 * Professional HR Dashboard Enhancements */
 .panel-header::after {
     content: '';
@@ -3494,4 +3497,156 @@ textarea:focus {
 .skill-tag:hover {
     transform: translateY(-1px) scale(1.05);
     box-shadow: 0 2px 8px rgba(47, 79, 79, 0.1);
+}
+
+/* Candidate ranking */
+.rank-results {
+    padding: var(--spacing-lg);
+}
+
+.panel-subheader {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: var(--spacing-lg);
+    padding-bottom: var(--spacing-sm);
+    border-bottom: 1px solid rgba(47, 79, 79, 0.1);
+}
+
+.panel-subheader h3 {
+    margin: 0;
+    color: var(--primary-color);
+}
+
+.panel-subheader span {
+    color: var(--text-muted);
+    font-size: var(--font-size-sm);
+}
+
+.rank-list {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.rank-item {
+    display: flex;
+    align-items: flex-start;
+    gap: 14px;
+    padding: 14px 16px;
+    background: var(--bg-card);
+    border: 1px solid rgba(47, 79, 79, 0.1);
+    border-radius: var(--border-radius-lg);
+    box-shadow: var(--shadow-card);
+    transition: var(--transition-fast);
+}
+
+.rank-item:hover {
+    box-shadow: var(--shadow-hover);
+    transform: translateY(-2px);
+}
+
+.rank-badge {
+    flex: 0 0 auto;
+    width: 38px;
+    height: 38px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 700;
+    font-size: var(--font-size-sm);
+    color: var(--text-light);
+    background: var(--primary-gradient);
+    border-radius: var(--border-radius-md);
+}
+
+.rank-info {
+    flex: 1;
+    min-width: 0;
+}
+
+.rank-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    gap: 12px;
+    margin-bottom: 2px;
+}
+
+.rank-name {
+    font-size: var(--font-size-lg);
+    font-weight: 700;
+    color: var(--text-primary);
+}
+
+.rank-score {
+    flex: 0 0 auto;
+    font-size: var(--font-size-xl);
+    font-weight: 800;
+    color: var(--primary-color);
+}
+
+.rank-title {
+    font-size: var(--font-size-sm);
+    color: var(--text-muted);
+    margin-bottom: 8px;
+}
+
+.rank-bar {
+    height: 6px;
+    background: var(--bg-secondary);
+    border-radius: 999px;
+    overflow: hidden;
+    margin-bottom: 8px;
+}
+
+.rank-bar-fill {
+    height: 100%;
+    background: var(--primary-gradient);
+    border-radius: 999px;
+    transition: width 0.4s ease-out;
+}
+
+.rank-metrics {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 16px;
+    margin-bottom: 8px;
+    font-size: var(--font-size-sm);
+    color: var(--text-secondary);
+}
+
+.rank-metrics b {
+    color: var(--primary-color);
+    font-weight: 700;
+}
+
+.rank-item .skills-list {
+    margin-top: 4px;
+}
+
+/* Job-seeker fit suggestions */
+.fit-suggestions {
+    margin-top: var(--spacing-lg);
+    padding: var(--spacing-lg);
+    background: var(--bg-card);
+    border: 1px solid rgba(47, 79, 79, 0.1);
+    border-radius: var(--border-radius-lg);
+    box-shadow: var(--shadow-card);
+}
+
+.fit-suggestions h3 {
+    margin: 3 0 var(--spacing-md);
+    color: var(--primary-color);
+}
+
+.suggestions-list {
+    margin: 0;
+    padding-left: 20px;
+}
+
+.suggestions-list li {
+    margin-bottom: var(--spacing-sm);
+    color: var(--text-secondary);
+    line-height: 1.5;
 }

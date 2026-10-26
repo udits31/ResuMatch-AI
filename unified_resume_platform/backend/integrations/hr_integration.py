@@ -79,6 +79,54 @@ class HRIntegration:
             print(f"Error fetching job description: {e}")
             return None
 
+    def get_all_resumes_with_text(self):
+        """Fetch all real resumes (id, title, name, full text), excluding analyzed entries"""
+        try:
+            if self.db_manager.connect():
+                cursor = self.db_manager.connection.cursor(cursor_factory=RealDictCursor)
+                cursor.execute("SELECT resume_id, resume_title, candidate_name, resume_text FROM resumes WHERE NOT (resume_title = 'Analyzed Resume' AND candidate_name = 'Candidate') ORDER BY resume_id")
+                rows = cursor.fetchall()
+                cursor.close()
+                self.db_manager.disconnect()
+                return rows
+            return []
+        except Exception as e:
+            print(f"Error fetching resumes with text: {e}")
+            return []
+
+    def rank_candidates(self, job_description):
+        """Score every resume in the database against one job description and return them ranked by match score"""
+        try:
+            if not job_description or not job_description.strip():
+                return {'success': False, 'message': 'Job description is required', 'data': None, 'errors': ['Missing job description']}
+
+            resumes = self.get_all_resumes_with_text()
+            if not resumes:
+                return {'success': False, 'message': 'No resumes available to rank', 'data': None, 'errors': ['No resumes in database']}
+
+            ranked = []
+            for r in resumes:
+                analysis = self.matcher.get_match_analysis(r['resume_text'], job_description)
+                ranked.append({
+                    'resume_id': r['resume_id'],
+                    'resume_title': r['resume_title'],
+                    'candidate_name': r['candidate_name'],
+                    'match_score': analysis['match_score'],
+                    'semantic_score': analysis['semantic_score'],
+                    'tfidf_score': analysis['tfidf_score'],
+                    'skill_match_percentage': analysis['skill_match_percentage'],
+                    'matching_skills': analysis['matching_skills'],
+                    'missing_skills': analysis['missing_skills'],
+                })
+
+            ranked.sort(key=lambda c: c['match_score'], reverse=True)
+            for i, c in enumerate(ranked, start=1):
+                c['rank'] = i
+
+            return {'success': True, 'message': f'Ranked {len(ranked)} candidates', 'data': {'candidates': ranked}, 'errors': []}
+        except Exception as e:
+            return {'success': False, 'message': 'Error ranking candidates', 'data': None, 'errors': [str(e)]}
+
     def analyze_match(self, resume_text, job_description):
         try:
             if not resume_text or not job_description:

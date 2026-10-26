@@ -1,6 +1,7 @@
 
 import os
 import sys
+import threading
 from flask import Flask, render_template, request, jsonify
 from psycopg2.extras import RealDictCursor
 
@@ -53,6 +54,15 @@ def hr_match():
             data.get('resume', ''),
             data.get('job_description', '')
         )
+        return jsonify(result)
+    except Exception as e:
+        return jsonify({'success': False, 'message': str(e)}), 500
+
+@app.route('/api/hr/rank', methods=['POST'])
+def hr_rank():
+    try:
+        data = request.get_json()
+        result = hr_integration.rank_candidates(data.get('job_description', ''))
         return jsonify(result)
     except Exception as e:
         return jsonify({'success': False, 'message': str(e)}), 500
@@ -291,4 +301,17 @@ if __name__ == '__main__':
         print("Status: Running without database (limited functionality)")
     print("="*50 + "\n")
 
-    app.run(debug=True, host='0.0.0.0', port=5000)
+    # Warm up the semantic model in the background (only in the process that
+    # actually serves requests) so the first analysis/ranking isn't slow.
+    if os.environ.get('WERKZEUG_RUN_MAIN') == 'true':
+        def _prewarm_model():
+            try:
+                from unified_resume_platform.backend.models.matching_engine import _get_embedding_model
+                _get_embedding_model()
+            except Exception as e:
+                print(f"Model prewarm skipped: {e}")
+        threading.Thread(target=_prewarm_model, daemon=True).start()
+
+    # Exclude site-packages so the reloader doesn't restart on lazy imports of
+    # large ML libraries (transformers/torch/spaCy), which breaks in-flight requests.
+    app.run(debug=True, host='0.0.0.0', port=5000, exclude_patterns=['*site-packages*'])

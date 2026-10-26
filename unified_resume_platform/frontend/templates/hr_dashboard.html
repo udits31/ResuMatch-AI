@@ -53,6 +53,14 @@ endblock %} {% block content %}
               </svg>
               Analyze Match
             </button>
+            <button id="rankBtn" class="btn btn-secondary btn-large">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <line x1="12" y1="20" x2="12" y2="10"></line>
+                <line x1="18" y1="20" x2="18" y2="4"></line>
+                <line x1="6" y1="20" x2="6" y2="16"></line>
+              </svg>
+              Rank All Candidates
+            </button>
             <button id="clearBtn" class="btn btn-secondary">
               <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                 <path d="M3 6h18"></path>
@@ -94,6 +102,8 @@ endblock %} {% block content %}
             </p>
           </div>
         </div>
+
+        <div id="rankResults" class="rank-results" style="display: none"></div>
 
         <div id="matchResults" class="match-results" style="display: none">
           <div class="score-section">
@@ -206,6 +216,7 @@ endblock %} {% block content %}
     document
       .getElementById("analyzeBtn")
       .addEventListener("click", analyzeMatch);
+    document.getElementById("rankBtn").addEventListener("click", rankCandidates);
     document.getElementById("clearBtn").addEventListener("click", clearInputs);
   }
 
@@ -273,6 +284,7 @@ endblock %} {% block content %}
 
   function displayResults(data) {
     document.getElementById("resultsContainer").style.display = "none";
+    document.getElementById("rankResults").style.display = "none";
     document.getElementById("matchResults").style.display = "block";
 
     document.getElementById("overallScore").textContent =
@@ -316,6 +328,83 @@ endblock %} {% block content %}
     });
   }
 
+  async function rankCandidates() {
+    const jobDescription = document.getElementById("jobDescription").value;
+    if (!jobDescription.trim()) {
+      showNotification("Please provide a job description to rank against", "error");
+      return;
+    }
+    const btn = document.getElementById("rankBtn");
+    const original = btn.innerHTML;
+    btn.disabled = true;
+    btn.textContent = "Ranking...";
+    try {
+      const response = await fetch("/api/hr/rank", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ job_description: jobDescription }),
+      });
+      const result = await response.json();
+      if (result.success) {
+        displayRanking(result.data.candidates);
+        showNotification("Ranking completed", "success");
+      } else {
+        showNotification(result.message || "Ranking failed", "error");
+      }
+    } catch (error) {
+      console.error("Error ranking candidates:", error);
+      showNotification("Error ranking candidates", "error");
+    } finally {
+      btn.disabled = false;
+      btn.innerHTML = original;
+    }
+  }
+
+  function displayRanking(candidates) {
+    document.getElementById("resultsContainer").style.display = "none";
+    document.getElementById("matchResults").style.display = "none";
+    const container = document.getElementById("rankResults");
+    container.style.display = "block";
+
+    if (!candidates || candidates.length === 0) {
+      container.innerHTML = '<div class="no-skills">No candidates found</div>';
+      return;
+    }
+
+    let html =
+      '<div class="panel-subheader"><h3>Candidate Ranking</h3><span>' +
+      candidates.length +
+      " candidates</span></div><div class='rank-list'>";
+
+    candidates.forEach((c) => {
+      const skills = (c.matching_skills || [])
+        .slice(0, 6)
+        .map((s) => `<span class="skill-tag skill-match">${s}</span>`)
+        .join("");
+      const semantic = c.semantic_score != null ? c.semantic_score + "%" : "n/a";
+      const width = Math.min(c.match_score, 100);
+      html += `
+        <div class="rank-item">
+          <div class="rank-badge">#${c.rank}</div>
+          <div class="rank-info">
+            <div class="rank-head">
+              <span class="rank-name">${c.candidate_name}</span>
+              <span class="rank-score">${c.match_score}%</span>
+            </div>
+            <div class="rank-title">${c.resume_title}</div>
+            <div class="rank-bar"><div class="rank-bar-fill" style="width:${width}%"></div></div>
+            <div class="rank-metrics">
+              <span>Semantic <b>${semantic}</b></span>
+              <span>Skill Match <b>${c.skill_match_percentage}%</b></span>
+            </div>
+            <div class="skills-list">${skills || '<span class="no-skills">No matching skills</span>'}</div>
+          </div>
+        </div>`;
+    });
+    html += "</div>";
+    container.innerHTML = html;
+  }
+
   function clearInputs() {
     document.getElementById("resumeText").value = "";
     document.getElementById("jobDescription").value = "";
@@ -323,6 +412,7 @@ endblock %} {% block content %}
     document.getElementById("jdSample").selectedIndex = 0;
     document.getElementById("resultsContainer").style.display = "block";
     document.getElementById("matchResults").style.display = "none";
+    document.getElementById("rankResults").style.display = "none";
   }
 
   function showNotification(message, type) {

@@ -5,6 +5,7 @@ Job Analyzer - Extracts keywords and requirements from job descriptions
 import re
 from typing import Dict, List, Set, Any
 from collections import Counter
+from .skill_extractor import get_skill_extractor
 
 
 class JobAnalyzer:
@@ -12,6 +13,7 @@ class JobAnalyzer:
     
     def __init__(self):
         """Initialize JobAnalyzer with common patterns and stopwords"""
+        self.skill_extractor = get_skill_extractor()
         self.skill_patterns = [
             r'\b(?:python|java|javascript|c\+\+|c#|sql|html|css|react|angular|vue|node\.?js)\b',
             r'\b(?:aws|azure|gcp|docker|kubernetes|git|jenkins|terraform)\b',
@@ -103,20 +105,23 @@ class JobAnalyzer:
         )
         
         for section in required_sections:
-            for pattern in self.skill_patterns:
-                matches = re.findall(pattern, section, re.IGNORECASE)
-                required_skills.extend(matches)
-        
+            required_skills.extend(self.skill_extractor.extract(section))
+
         # Look for preferred skills sections
         preferred_sections = re.findall(
             r'(?:preferred|nice to have|plus|bonus|would be great).*?(?:\n\n|$)',
             text, re.DOTALL
         )
-        
+
         for section in preferred_sections:
-            for pattern in self.skill_patterns:
-                matches = re.findall(pattern, section, re.IGNORECASE)
-                preferred_skills.extend(matches)
+            preferred_skills.extend(self.skill_extractor.extract(section))
+
+        # Fallback: if no explicit sections were found, treat all detected skills as required
+        if not required_skills and not preferred_skills:
+            required_skills = self.skill_extractor.extract(job_description)
+
+        # Don't list a skill as preferred if it is already required
+        preferred_skills = [s for s in preferred_skills if s not in set(required_skills)]
         
         # Extract experience level
         experience_level = ""

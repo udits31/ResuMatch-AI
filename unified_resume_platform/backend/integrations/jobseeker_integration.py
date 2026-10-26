@@ -7,6 +7,7 @@ try:
     from ..models.job_analyzer import JobAnalyzer
     from ..models.profile_manager import ProfileManager
     from ..models.resume_generator import ResumeGenerator
+    from ..models.matching_engine import ResumeMatcher
     from ..database.db_manager import DatabaseManager
 except ImportError as e:
     print(f"Error importing Job Seeker modules: {e}")
@@ -22,6 +23,7 @@ class JobSeekerIntegration:
         self.job_analyzer = JobAnalyzer()
         self.profile_manager = ProfileManager(data_dir)
         self.resume_generator = ResumeGenerator()
+        self.matcher = ResumeMatcher()
         self.db_manager = DatabaseManager()
         self.current_analysis = None
         self.current_profile = None
@@ -45,6 +47,13 @@ class JobSeekerIntegration:
                 **requirements
             }
 
+            # Fit analysis against the saved profile (if one exists)
+            profile = self.current_profile or self.profile_manager.load_profile()
+            if profile:
+                fit = self._compute_fit(profile, job_description)
+                analysis['relevance_score'] = round(fit['overall'] / 100.0, 4)
+                analysis['fit'] = fit
+
             self.current_analysis = analysis
 
             # Database saving is optional for job analysis
@@ -63,7 +72,82 @@ class JobSeekerIntegration:
                 'data': None,
                 'errors': [str(e)]
             }
-    
+
+    def _profile_to_text(self, profile):
+        """Flatten a structured profile into a single resume-like text blob for matching."""
+        parts = []
+        if profile.get('summary'):
+            parts.append(profile['summary'])
+        for exp in profile.get('work_experience', []) or []:
+            parts.append(f"{exp.get('position', '')} at {exp.get('company', '')}")
+            if exp.get('description'):
+                parts.append(exp['description'])
+            parts.extend(exp.get('achievements', []) or [])
+        for edu in profile.get('education', []) or []:
+            parts.append(f"{edu.get('degree', '')} {edu.get('field', '')} {edu.get('institution', '')}")
+        skills = profile.get('skills', {}) or {}
+        for category in ['technical', 'soft', 'languages', 'certifications']:
+            values = skills.get(category)
+            if isinstance(values, list):
+                parts.extend(values)
+        for proj in profile.get('projects', []) or []:
+            parts.append(proj.get('name', ''))
+            if proj.get('description'):
+                parts.append(proj['description'])
+            parts.extend(proj.get('technologies', []) or [])
+        return "\n".join(p for p in parts if p)
+
+    def _compute_fit(self, profile, job_description):
+        """Score the profile against the job description and build tailoring suggestions."""
+        profile_text = self._profile_to_text(profile)
+        result = self.matcher.get_match_analysis(profile_text, job_description)
+        detected_skills = self.matcher.extract_skills(profile_text)
+
+        overall = result['match_score']
+        if overall >= 70:
+            verdict = 'Strong fit'
+        elif overall >= 40:
+            verdict = 'Moderate fit'
+        else:
+            verdict = 'Low fit'
+
+        return {
+            'overall': overall,
+            'semantic': result['semantic_score'],
+            'skill_match': result['skill_match_percentage'],
+            'matching_skills': result['matching_skills'],
+            'missing_skills': result['missing_skills'],
+            'detected_skills': detected_skills,
+            'verdict': verdict,
+            'suggestions': self._build_suggestions(result, profile),
+        }
+
+    def _build_suggestions(self, result, profile):
+        """Turn the skill gap and profile state into actionable tailoring tips."""
+        suggestions = []
+        missing = result.get('missing_skills', [])
+        matching = result.get('matching_skills', [])
+
+        if missing:
+            suggestions.append(
+                "Add these job-relevant skills if you have them: " + ", ".join(missing[:10])
+            )
+        if result.get('skill_match_percentage', 0) < 50 and result.get('jd_skills'):
+            suggestions.append(
+                "Your skill overlap with this job is low. Mirror the job's wording in your experience bullets where it is true for you."
+            )
+        if not (profile.get('summary') or '').strip():
+            suggestions.append(
+                "Add a professional summary highlighting your most relevant experience for this role."
+            )
+        if matching:
+            suggestions.append(
+                "Lead with your matching strengths: " + ", ".join(matching[:8])
+            )
+        if not suggestions:
+            suggestions.append("Strong alignment. You look like a great match for this role.")
+        return suggestions
+
     def get_profile(self):
         """Get current profile data"""
         try:

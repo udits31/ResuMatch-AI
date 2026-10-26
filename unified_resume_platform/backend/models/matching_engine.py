@@ -42,6 +42,19 @@ def _get_embedding_model():
         _EMBED_MODEL = None
     return _EMBED_MODEL
 
+# Cache of text -> embedding vector so repeated encodes don't recompute. This
+# makes ranking fast: each resume and the JD are encoded once, then reused
+# (vectors are small — 384 floats each).
+_EMBED_CACHE = {}
+
+def _encode_text(model, text):
+    key = hash(text)
+    vector = _EMBED_CACHE.get(key)
+    if vector is None:
+        vector = model.encode([text], convert_to_numpy=True)[0]
+        _EMBED_CACHE[key] = vector
+    return vector
+
 class ResumeMatcher:
     def __init__(self):
         self.stop_words = set(stopwords.words('english'))
@@ -97,8 +110,8 @@ class ResumeMatcher:
         if model is None or not resume_text or not job_description:
             return None
         try:
-            embeddings = model.encode([resume_text, job_description], convert_to_numpy=True)
-            a, b = embeddings[0], embeddings[1]
+            a = _encode_text(model, resume_text)
+            b = _encode_text(model, job_description)
             denom = float(np.linalg.norm(a) * np.linalg.norm(b))
             if denom == 0:
                 return 0.0

@@ -185,10 +185,10 @@
           >
             <div class="results-grid">
               <div class="result-card">
-                <h3>Relevance Score</h3>
+                <h3>Profile Fit</h3>
                 <div class="score-display">
                   <div class="score-circle small">
-                    <span id="relevanceScore">0%</span>
+                    <span id="relevanceScore" class="score-value">0%</span>
                   </div>
                 </div>
               </div>
@@ -217,6 +217,26 @@
                 <h3>Education Requirements</h3>
                 <div id="educationReqs" class="info-text"></div>
               </div>
+
+              <div class="result-card">
+                <h3>Your Matching Skills</h3>
+                <div id="fitMatching" class="skills-list"></div>
+              </div>
+
+              <div class="result-card">
+                <h3>Skill Gaps (Missing)</h3>
+                <div id="fitMissing" class="skills-list"></div>
+              </div>
+
+              <div class="result-card">
+                <h3>Skills Detected in Your Profile</h3>
+                <div id="fitDetected" class="skills-list"></div>
+              </div>
+            </div>
+
+            <div id="fitSuggestionsSection" class="fit-suggestions" style="display: none">
+              <h3>Suggestions to Improve Your Fit</h3>
+              <ul id="fitSuggestions" class="suggestions-list"></ul>
             </div>
 
             <div class="generate-section">
@@ -652,14 +672,37 @@
   function displayAnalysisResults(data) {
       document.getElementById('analysisResults').style.display = 'block';
 
-      document.getElementById('relevanceScore').textContent = Math.round(data.relevance_score * 100) + '%';
-
       displayList('topKeywords', data.keywords.slice(0, 10), 'keyword-tag');
       displayList('requiredSkills', data.required_skills, 'skill-tag skill-required');
       displayList('preferredSkills', data.preferred_skills, 'skill-tag skill-preferred');
 
       document.getElementById('experienceLevel').textContent = data.experience_level || 'Not specified';
       document.getElementById('educationReqs').textContent = data.education_requirements || 'Not specified';
+
+      const scoreEl = document.getElementById('relevanceScore');
+      const suggestionsList = document.getElementById('fitSuggestions');
+      suggestionsList.innerHTML = '';
+
+      if (data.fit) {
+          scoreEl.textContent = data.fit.overall + '%';
+          displayList('fitMatching', data.fit.matching_skills, 'skill-tag skill-match');
+          displayList('fitMissing', data.fit.missing_skills, 'skill-tag skill-missing');
+          displayList('fitDetected', data.fit.detected_skills, 'skill-tag skill-neutral');
+          data.fit.suggestions.forEach(s => {
+              const li = document.createElement('li');
+              li.textContent = s;
+              suggestionsList.appendChild(li);
+          });
+      } else {
+          scoreEl.textContent = 'N/A';
+          displayList('fitMatching', [], 'skill-tag skill-match');
+          displayList('fitMissing', [], 'skill-tag skill-missing');
+          displayList('fitDetected', [], 'skill-tag skill-neutral');
+          const li = document.createElement('li');
+          li.textContent = 'Save your profile first to see how well you fit this job.';
+          suggestionsList.appendChild(li);
+      }
+      document.getElementById('fitSuggestionsSection').style.display = 'block';
   }
 
   function displayList(containerId, items, className) {
@@ -793,6 +836,7 @@
   function clearAnalysis() {
       document.getElementById('jobDescriptionText').value = '';
       document.getElementById('analysisResults').style.display = 'none';
+      document.getElementById('fitSuggestionsSection').style.display = 'none';
       currentAnalysis = null;
   }
 
