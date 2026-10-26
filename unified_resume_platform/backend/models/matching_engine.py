@@ -1,8 +1,6 @@
 # matching_engine.py
 import os
-# sentence-transformers runs on PyTorch. Stop the `transformers` library from
-# importing TensorFlow/Flax, which otherwise fails here (Keras 3 without tf-keras).
-# These must be set before `transformers` is first imported.
+# Keep transformers on PyTorch (skip TensorFlow/Flax import), set before importing it.
 os.environ.setdefault("USE_TF", "0")
 os.environ.setdefault("USE_FLAX", "0")
 os.environ.setdefault("TRANSFORMERS_NO_ADVISORY_WARNINGS", "1")
@@ -16,6 +14,7 @@ from sklearn.metrics.pairwise import cosine_similarity
 from nltk.corpus import stopwords
 from nltk.tokenize import word_tokenize
 from nltk.stem import WordNetLemmatizer
+from unified_resume_platform.backend.models.skill_extractor import get_skill_extractor
 import string
 
 # Download required NLTK data
@@ -23,11 +22,7 @@ nltk.download('punkt', quiet=True)
 nltk.download('stopwords', quiet=True)
 nltk.download('wordnet', quiet=True)
 
-# ---------------------------------------------------------------------------
-# Lazy-loaded semantic model (sentence-transformers / all-MiniLM-L6-v2).
-# Loaded once on first use so app startup stays fast, and the whole app still
-# works (falling back to TF-IDF) if the library/model isn't available.
-# ---------------------------------------------------------------------------
+# Lazy-loaded semantic model (all-MiniLM-L6-v2); falls back to TF-IDF if unavailable.
 _EMBED_MODEL = None
 _EMBED_MODEL_TRIED = False
 
@@ -56,6 +51,7 @@ class ResumeMatcher:
             stop_words='english',
             ngram_range=(1, 2)
         )
+        self.skill_extractor = get_skill_extractor()
         
     def preprocess_text(self, text):
         """Clean and preprocess text"""
@@ -80,32 +76,11 @@ class ResumeMatcher:
         return ' '.join(tokens)
     
     def extract_skills(self, text):
-        """Extract potential skills from text"""
-        # Common skills database (in a real app, this would be more comprehensive)
-        common_skills = {
-            'python', 'java', 'javascript', 'sql', 'html', 'css', 'react', 'angular',
-            'nodejs', 'django', 'flask', 'aws', 'docker', 'kubernetes', 'git',
-            'machine learning', 'data analysis', 'project management', 'agile',
-            'scrum', 'rest api', 'mongodb', 'mysql', 'postgresql', 'linux',
-            'excel', 'power bi', 'tableau', 'tensorflow', 'pytorch', 'pandas',
-            'numpy', 'scikit-learn', 'ci/cd', 'jenkins', 'azure', 'gcp'
-        }
-        
-        text_lower = text.lower()
-        found_skills = []
-        
-        for skill in common_skills:
-            if skill in text_lower:
-                found_skills.append(skill)
-                
-        return found_skills
+        """Extract canonical skills via the NLP SkillExtractor (spaCy PhraseMatcher)."""
+        return self.skill_extractor.extract(text)
     
     def calculate_tfidf_similarity(self, processed_resume, processed_jd):
-        """Lexical (bag-of-words) similarity: TF-IDF vectors + cosine. Returns 0-100.
-
-        This is the original matching method, kept as a baseline to compare the
-        semantic model against.
-        """
+        """Lexical TF-IDF + cosine similarity (0-100), kept as the baseline."""
         if not processed_resume or not processed_jd:
             return 0.0
         try:
@@ -117,14 +92,7 @@ class ResumeMatcher:
             return 0.0
 
     def calculate_semantic_similarity(self, resume_text, job_description):
-        """Semantic similarity using sentence-embeddings + cosine. Returns 0-100,
-        or None if the embedding model is unavailable (caller falls back to TF-IDF).
-
-        Unlike TF-IDF, this captures meaning: e.g. "built REST APIs" and
-        "API development" score as similar even without shared words. Raw text is
-        used here (not the lemmatized/stopword-stripped text) because the model
-        does its own tokenization and benefits from the original wording.
-        """
+        """Sentence-embedding + cosine similarity (0-100), or None if unavailable."""
         model = _get_embedding_model()
         if model is None or not resume_text or not job_description:
             return None
@@ -143,13 +111,7 @@ class ResumeMatcher:
             return None
 
     def get_match_analysis(self, resume_text, job_description):
-        """Get detailed match analysis.
-
-        Final score blends document similarity (30%) with skill overlap (70%).
-        The document-similarity component prefers the semantic model when
-        available and falls back to TF-IDF otherwise. Both raw scores are also
-        returned so the UI can show semantic vs. TF-IDF side by side.
-        """
+        """Blend document similarity (30%, semantic preferred) with skill overlap (70%)."""
         processed_resume = self.preprocess_text(resume_text)
         processed_jd = self.preprocess_text(job_description)
 

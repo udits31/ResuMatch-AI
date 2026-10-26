@@ -20,11 +20,11 @@ class HRIntegration:
         self.db_manager = DatabaseManager()
     
     def get_resumes_from_db(self):
-        """Fetch all resumes from database"""
+        """Fetch resumes for the dropdown, excluding auto-generated 'Analyzed Resume' entries"""
         try:
             if self.db_manager.connect():
                 cursor = self.db_manager.connection.cursor(cursor_factory=RealDictCursor)
-                cursor.execute("SELECT resume_id, resume_title, candidate_name, candidate_email FROM resumes ORDER BY uploaded_at DESC")
+                cursor.execute("SELECT resume_id, resume_title, candidate_name, candidate_email FROM resumes WHERE NOT (resume_title = 'Analyzed Resume' AND candidate_name = 'Candidate') ORDER BY uploaded_at DESC")
                 resumes = cursor.fetchall()
                 cursor.close()
                 self.db_manager.disconnect()

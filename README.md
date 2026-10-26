@@ -10,6 +10,9 @@ A comprehensive AI-powered resume management platform with two main components:
 # Install dependencies
 pip install -r requirements.txt
 
+# Download the spaCy English model (one-time, needed for skill extraction)
+python -m spacy download en_core_web_sm
+
 # Configure the database (Supabase / PostgreSQL)
 # 1. Create a free project at https://supabase.com
 # 2. In the Supabase SQL Editor, run supabase_schema.sql then insert_data.sql
@@ -20,6 +23,12 @@ python app.py
 ```
 
 Visit: http://localhost:5000
+
+> **Python 3.13 note:** if `pip install` tries to build spaCy/numpy from source and fails,
+> install prebuilt wheels instead: `pip install --only-binary=:all: spacy==3.8.16`
+>
+> The sentence-transformers model (`all-MiniLM-L6-v2`, ~80 MB) downloads automatically on
+> the first match, and NLTK data downloads automatically on first run — both need internet once.
 
 ## 📁 Project Structure
 
@@ -51,6 +60,24 @@ stored in a `.env` file (never committed to git).
 ```bash
 SUPABASE_DB_URL=postgresql://postgres:[YOUR-PASSWORD]@db.xxxxxxxxxxxx.supabase.co:5432/postgres
 ```
+
+## 🧠 Matching Engine (NLP)
+
+Resume–job matching combines two NLP signals into one score
+(`30% document similarity + 70% skill overlap`):
+
+- **Semantic similarity** — the resume and job description are encoded with
+  sentence-embeddings (`all-MiniLM-L6-v2`) and compared with cosine similarity.
+  This captures *meaning*, so "built REST APIs" matches "API development" even
+  with no shared words. The original **TF-IDF** (keyword) score is kept as a
+  baseline, and both are shown side by side in the HR dashboard.
+- **Skill extraction** — skills are pulled from text with spaCy's `PhraseMatcher`
+  over a curated, categorized taxonomy with synonym handling, so "ML" ↔
+  "machine learning", "k8s" ↔ "kubernetes" and "containerization" → Docker all
+  resolve to one canonical skill. Falls back to regex if spaCy is unavailable.
+
+If the semantic model or spaCy model is missing, the engine degrades gracefully
+(TF-IDF only / regex skills) rather than failing.
 
 ## 📋 User Flow
 
