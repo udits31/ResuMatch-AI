@@ -1,6 +1,5 @@
--- Sample data for unified resume platform
-
-USE unified_resume_portal;
+-- Sample data for unified resume platform (Supabase / PostgreSQL)
+-- Run this in the Supabase SQL Editor AFTER supabase_schema.sql.
 
 -- Resume data
 

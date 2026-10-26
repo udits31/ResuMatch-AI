@@ -1,4 +1,4 @@
-import json
+from psycopg2.extras import Json
 from unified_resume_platform.backend.database.db_config import get_db_connection, close_db_connection
 
 class DatabaseManager:
@@ -30,10 +30,12 @@ class DatabaseManager:
             if not self.connection:
                 self.connect()
             cursor = self.connection.cursor()
-            query = "INSERT INTO resumes (resume_text, candidate_name, candidate_email) VALUES (%s, %s, %s)"
-            cursor.execute(query, (resume_text, candidate_name, candidate_email))
+            # PostgreSQL returns the new id via RETURNING (there is no lastrowid)
+            query = """INSERT INTO resumes (resume_title, resume_text, candidate_name, candidate_email)
+                       VALUES (%s, %s, %s, %s) RETURNING resume_id"""
+            cursor.execute(query, ('Analyzed Resume', resume_text, candidate_name or 'Candidate', candidate_email))
+            resume_id = cursor.fetchone()[0]
             self.connection.commit()
-            resume_id = cursor.lastrowid
             cursor.close()
             return resume_id
         except Exception as e:
@@ -47,10 +49,11 @@ class DatabaseManager:
             if not self.connection:
                 self.connect()
             cursor = self.connection.cursor()
-            query = "INSERT INTO job_descriptions (job_title, company_name, job_description_text, posted_by) VALUES (%s, %s, %s, %s)"
+            query = """INSERT INTO job_descriptions (job_title, company_name, job_description_text, posted_by)
+                       VALUES (%s, %s, %s, %s) RETURNING job_id"""
             cursor.execute(query, (job_title, company_name, job_description_text, posted_by))
+            job_id = cursor.fetchone()[0]
             self.connection.commit()
-            job_id = cursor.lastrowid
             cursor.close()
             return job_id
         except Exception as e:
@@ -64,17 +67,24 @@ class DatabaseManager:
             if not self.connection:
                 self.connect()
             cursor = self.connection.cursor()
-            query = """INSERT INTO resume_matches (resume_id, job_id, match_score, skill_match_percentage, 
-                      matching_skills, missing_skills, resume_skills, job_skills) 
+            # PostgreSQL upsert: ON CONFLICT ... DO UPDATE with EXCLUDED (not VALUES()).
+            # JSONB values are passed through psycopg2's Json adapter.
+            query = """INSERT INTO resume_matches (resume_id, job_id, match_score, skill_match_percentage,
+                      matching_skills, missing_skills, resume_skills, job_skills)
                       VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
-                      ON DUPLICATE KEY UPDATE match_score = VALUES(match_score), 
-                      skill_match_percentage = VALUES(skill_match_percentage)"""
+                      ON CONFLICT (resume_id, job_id) DO UPDATE SET
+                          match_score = EXCLUDED.match_score,
+                          skill_match_percentage = EXCLUDED.skill_match_percentage,
+                          matching_skills = EXCLUDED.matching_skills,
+                          missing_skills = EXCLUDED.missing_skills,
+                          resume_skills = EXCLUDED.resume_skills,
+                          job_skills = EXCLUDED.job_skills"""
             cursor.execute(query, (
                 resume_id, job_id, match_score, skill_match_percentage,
-                json.dumps(match_details.get('matching_skills', [])),
-                json.dumps(match_details.get('missing_skills', [])),
-                json.dumps(match_details.get('resume_skills', [])),
-                json.dumps(match_details.get('jd_skills', []))
+                Json(match_details.get('matching_skills', [])),
+                Json(match_details.get('missing_skills', [])),
+                Json(match_details.get('resume_skills', [])),
+                Json(match_details.get('jd_skills', []))
             ))
             self.connection.commit()
             cursor.close()

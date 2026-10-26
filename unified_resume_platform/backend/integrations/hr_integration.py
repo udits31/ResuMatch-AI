@@ -3,6 +3,8 @@ import os
 
 sys.path.append(os.path.join(os.path.dirname(__file__), '..', '..'))
 
+from psycopg2.extras import RealDictCursor
+
 try:
     from ..models.matching_engine import ResumeMatcher
     from ..database.db_manager import DatabaseManager
@@ -21,7 +23,7 @@ class HRIntegration:
         """Fetch all resumes from database"""
         try:
             if self.db_manager.connect():
-                cursor = self.db_manager.connection.cursor(dictionary=True)
+                cursor = self.db_manager.connection.cursor(cursor_factory=RealDictCursor)
                 cursor.execute("SELECT resume_id, resume_title, candidate_name, candidate_email FROM resumes ORDER BY uploaded_at DESC")
                 resumes = cursor.fetchall()
                 cursor.close()
@@ -36,7 +38,7 @@ class HRIntegration:
         """Fetch all job descriptions from database, excluding auto-generated 'Analyzed Job' entries"""
         try:
             if self.db_manager.connect():
-                cursor = self.db_manager.connection.cursor(dictionary=True)
+                cursor = self.db_manager.connection.cursor(cursor_factory=RealDictCursor)
                 cursor.execute("SELECT job_id, job_title, company_name FROM job_descriptions WHERE status = 'active' AND NOT (job_title = 'Analyzed Job' AND company_name = 'Company') ORDER BY posted_at DESC")
                 job_descriptions = cursor.fetchall()
                 cursor.close()
@@ -51,7 +53,7 @@ class HRIntegration:
         """Fetch specific resume by ID"""
         try:
             if self.db_manager.connect():
-                cursor = self.db_manager.connection.cursor(dictionary=True)
+                cursor = self.db_manager.connection.cursor(cursor_factory=RealDictCursor)
                 cursor.execute("SELECT * FROM resumes WHERE resume_id = %s", (resume_id,))
                 resume = cursor.fetchone()
                 cursor.close()
@@ -66,7 +68,7 @@ class HRIntegration:
         """Fetch specific job description by ID"""
         try:
             if self.db_manager.connect():
-                cursor = self.db_manager.connection.cursor(dictionary=True)
+                cursor = self.db_manager.connection.cursor(cursor_factory=RealDictCursor)
                 cursor.execute("SELECT * FROM job_descriptions WHERE job_id = %s", (job_id,))
                 job_description = cursor.fetchone()
                 cursor.close()

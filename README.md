@@ -10,9 +10,10 @@ A comprehensive AI-powered resume management platform with two main components:
 # Install dependencies
 pip install -r requirements.txt
 
-# Setup database (optional)
-mysql -u root -p < resume.sql
-mysql -u root -p < insert_data.sql
+# Configure the database (Supabase / PostgreSQL)
+# 1. Create a free project at https://supabase.com
+# 2. In the Supabase SQL Editor, run supabase_schema.sql then insert_data.sql
+# 3. Copy .env.example to .env and paste your Supabase connection string
 
 # Start application
 python app.py
@@ -40,15 +41,15 @@ Clean, organized structure with backend models, integrations, database layer, an
 
 ## 🔧 Configuration
 
-Update database password in `unified_resume_platform/backend/database/db_config.py`:
+The app connects to a **Supabase (PostgreSQL)** database using a connection string
+stored in a `.env` file (never committed to git).
 
-```python
-DB_CONFIG = {
-    'host': 'localhost',
-    'user': 'root',
-    'password': 'your_password',  # Update this
-    'database': 'unified_resume_portal'
-}
+1. Copy `.env.example` to `.env`
+2. In Supabase: **Settings → Database → Connection string → URI** (port 5432)
+3. Paste it into `.env`, filling in your database password:
+
+```bash
+SUPABASE_DB_URL=postgresql://postgres:[YOUR-PASSWORD]@db.xxxxxxxxxxxx.supabase.co:5432/postgres
 ```
 
 ## 📋 User Flow
@@ -71,4 +72,4 @@ See requirements.txt for all dependencies.
 
 ## 📊 Database
 
-MySQL database with resumes, job descriptions, and matching tables. Profile data stored in JSON.
+Supabase (PostgreSQL) database with resumes, job descriptions, and matching tables. Profile data stored in JSON.

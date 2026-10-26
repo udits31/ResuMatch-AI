@@ -2,6 +2,7 @@
 import os
 import sys
 from flask import Flask, render_template, request, jsonify
+from psycopg2.extras import RealDictCursor
 
 current_dir = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, current_dir)
@@ -80,8 +81,8 @@ def test_database():
         db_manager = DatabaseManager()
         
         if db_manager.connect():
-            cursor = db_manager.connection.cursor(dictionary=True)
-            
+            cursor = db_manager.connection.cursor(cursor_factory=RealDictCursor)
+
             # Test resumes table
             cursor.execute("SELECT COUNT(*) as count FROM resumes")
             resume_count = cursor.fetchone()['count']
@@ -231,8 +232,8 @@ def check_database_connection():
             # Test data availability
             db_manager = DatabaseManager()
             if db_manager.connect():
-                cursor = db_manager.connection.cursor(dictionary=True)
-                
+                cursor = db_manager.connection.cursor(cursor_factory=RealDictCursor)
+
                 # Check resumes table
                 cursor.execute("SELECT COUNT(*) as count FROM resumes")
                 resume_count = cursor.fetchone()['count']
@@ -262,10 +263,10 @@ def check_database_connection():
         else:
             print("✗ Database connection failed")
             print("\nTo fix this:")
-            print("1. Make sure MySQL server is running")
-            print("2. Check password in unified_resume_platform/backend/db_config.py")
-            print("3. Ensure database 'unified_resume_portal' exists")
-            print("4. Run resume.sql and insert_data.sql if needed")
+            print("1. Make sure SUPABASE_DB_URL is set in your .env file")
+            print("2. Make sure your Supabase project is not paused")
+            print("3. Run supabase_schema.sql and insert_data.sql in the Supabase SQL Editor")
+            print("4. If connecting fails on a home network, use the Session Pooler URI")
             return False
             
     except Exception as e:
