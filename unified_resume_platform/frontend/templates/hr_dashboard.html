@@ -109,6 +109,14 @@ endblock %} {% block content %}
                 <span class="score-name">Skill Match</span>
                 <span class="score-percent" id="skillMatch">0%</span>
               </div>
+              <div class="score-item">
+                <span class="score-name">Semantic Match (AI)</span>
+                <span class="score-percent" id="semanticScore">0%</span>
+              </div>
+              <div class="score-item">
+                <span class="score-name">Keyword Match (TF-IDF)</span>
+                <span class="score-percent" id="tfidfScore">0%</span>
+              </div>
             </div>
           </div>
 
@@ -271,6 +279,16 @@ endblock %} {% block content %}
       data.match_score + "%";
     document.getElementById("skillMatch").textContent =
       data.skill_match_percentage + "%";
+
+    // Semantic vs TF-IDF breakdown (semantic may be null if the model is unavailable)
+    document.getElementById("semanticScore").textContent =
+      data.semantic_score !== null && data.semantic_score !== undefined
+        ? data.semantic_score + "%"
+        : "n/a";
+    document.getElementById("tfidfScore").textContent =
+      (data.tfidf_score !== null && data.tfidf_score !== undefined
+        ? data.tfidf_score
+        : 0) + "%";
 
     const scoreCircle = document.querySelector(".score-circle");
     scoreCircle.style.setProperty("--score", data.match_score);
