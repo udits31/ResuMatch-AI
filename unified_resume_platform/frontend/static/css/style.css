@@ -3625,6 +3625,30 @@ textarea:focus {
     margin-top: 4px;
 }
 
+/* Profile selector bar */
+.profile-selector-bar {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--spacing-sm);
+    margin-bottom: var(--spacing-md);
+    padding-bottom: var(--spacing-md);
+    border-bottom: 1px solid rgba(47, 79, 79, 0.1);
+}
+
+.profile-selector-bar label {
+    font-size: var(--font-size-sm);
+    font-weight: 600;
+    color: var(--text-secondary);
+}
+
+.profile-selector-bar input[type="text"] {
+    padding: 6px 10px;
+    border: 1px solid var(--accent-color);
+    border-radius: var(--border-radius-sm);
+    font-size: var(--font-size-sm);
+}
+
 /* Job-seeker fit suggestions */
 .fit-suggestions {
     margin-top: var(--spacing-lg);

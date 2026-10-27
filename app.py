@@ -132,10 +132,17 @@ def test_database():
             'message': f'Database error: {str(e)}'
         })
 
+@app.route('/api/jobseeker/profiles', methods=['GET'])
+def jobseeker_list_profiles():
+    try:
+        return jsonify(jobseeker_integration.list_profiles())
+    except Exception as e:
+        return jsonify({'success': False, 'message': str(e)}), 500
+
 @app.route('/api/jobseeker/profile', methods=['GET'])
 def jobseeker_get_profile():
     try:
-        result = jobseeker_integration.get_profile()
+        result = jobseeker_integration.get_profile(request.args.get('name'))
         return jsonify(result)
     except Exception as e:
         return jsonify({'success': False, 'message': str(e)}), 500
@@ -191,7 +198,8 @@ def jobseeker_export():
             data.get('content'),
             data.get('format'),
             data.get('profile'),
-            data.get('job_description')
+            data.get('job_description'),
+            data.get('resume_data')
         )
         
         if result['success'] and 'file_data' in result['data']:
@@ -314,4 +322,5 @@ if __name__ == '__main__':
 
     # Exclude site-packages so the reloader doesn't restart on lazy imports of
     # large ML libraries (transformers/torch/spaCy), which breaks in-flight requests.
-    app.run(debug=True, host='0.0.0.0', port=5000, exclude_patterns=['*site-packages*'])
+    port = int(os.environ.get('PORT', 5000))
+    app.run(debug=True, host='0.0.0.0', port=port, exclude_patterns=['*site-packages*'])

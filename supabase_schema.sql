@@ -96,3 +96,22 @@ DROP TRIGGER IF EXISTS trg_jobs_updated_at ON job_descriptions;
 CREATE TRIGGER trg_jobs_updated_at
     BEFORE UPDATE ON job_descriptions
     FOR EACH ROW EXECUTE FUNCTION set_updated_at();
+
+-- ---------------------------------------------------------------------------
+-- Table: profiles  — job-seeker profiles (multiple named profiles).
+-- The whole profile is stored as JSONB so the schema can grow without DDL.
+-- ---------------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS profiles (
+    profile_id   SERIAL PRIMARY KEY,
+    profile_name VARCHAR(255) UNIQUE NOT NULL,
+    data         JSONB NOT NULL,
+    created_at   TIMESTAMPTZ DEFAULT NOW(),
+    updated_at   TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_profiles_updated_at ON profiles (updated_at);
+
+DROP TRIGGER IF EXISTS trg_profiles_updated_at ON profiles;
+CREATE TRIGGER trg_profiles_updated_at
+    BEFORE UPDATE ON profiles
+    FOR EACH ROW EXECUTE FUNCTION set_updated_at();

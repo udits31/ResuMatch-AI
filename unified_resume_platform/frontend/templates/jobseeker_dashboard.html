@@ -19,6 +19,13 @@
 
       <div class="tab-content active" id="profile-tab">
         <div class="profile-section">
+          <div class="profile-selector-bar">
+            <label for="profileSelect">Load profile</label>
+            <select id="profileSelect" class="sample-select"></select>
+            <label for="profileNameInput">Name</label>
+            <input type="text" id="profileNameInput" placeholder="e.g. Data Science Profile" />
+            <button type="button" id="newProfileBtn" class="btn btn-small">New Profile</button>
+          </div>
           <div class="section-header">
             <h2>Professional Profile</h2>
             <div class="profile-actions">
@@ -50,6 +57,14 @@
                 <div class="form-group">
                   <label for="linkedin">LinkedIn</label>
                   <input type="url" id="linkedin" name="linkedin" />
+                </div>
+                <div class="form-group">
+                  <label for="headline">Headline / Title</label>
+                  <input type="text" id="headline" name="headline" placeholder="e.g. Machine Learning Engineer" />
+                </div>
+                <div class="form-group">
+                  <label for="location">Location</label>
+                  <input type="text" id="location" name="location" placeholder="City, Country" />
                 </div>
                 <div class="form-group full-width">
                   <label for="address">Address</label>
@@ -148,6 +163,26 @@
                 </button>
               </div>
               <div id="projectsContainer" class="dynamic-container"></div>
+            </div>
+
+            <div class="form-section">
+              <div class="section-header">
+                <h3>Publications</h3>
+                <button type="button" id="addPublicationBtn" class="btn btn-small">
+                  Add Publication
+                </button>
+              </div>
+              <div id="publicationsContainer" class="dynamic-container"></div>
+            </div>
+
+            <div class="form-section">
+              <div class="section-header">
+                <h3>Extra-curricular / Leadership</h3>
+                <button type="button" id="addExtracurricularBtn" class="btn btn-small">
+                  Add Activity
+                </button>
+              </div>
+              <div id="extracurricularContainer" class="dynamic-container"></div>
             </div>
           </form>
         </div>
@@ -308,8 +343,10 @@
       setupEventListeners();
       if (currentProfile) {
           populateProfileForm(currentProfile);
+          document.getElementById('profileNameInput').value = currentProfile.profile_name || '';
       }
       addInitialFormSections();
+      loadProfilesList();
   });
 
   function setupTabs() {
@@ -342,6 +379,71 @@
       document.getElementById('addExperienceBtn').addEventListener('click', addExperienceSection);
       document.getElementById('addEducationBtn').addEventListener('click', addEducationSection);
       document.getElementById('addProjectBtn').addEventListener('click', addProjectSection);
+      document.getElementById('addPublicationBtn').addEventListener('click', addPublicationSection);
+      document.getElementById('addExtracurricularBtn').addEventListener('click', addExtracurricularSection);
+
+      document.getElementById('profileSelect').addEventListener('change', function() {
+          if (this.value) loadProfileByName(this.value);
+      });
+      document.getElementById('newProfileBtn').addEventListener('click', newProfile);
+  }
+
+  async function loadProfilesList() {
+      try {
+          const response = await fetch('/api/jobseeker/profiles');
+          const result = await response.json();
+          const select = document.getElementById('profileSelect');
+          const names = (result.data && result.data.profiles) || [];
+          select.innerHTML = '<option value="">Select a profile</option>';
+          names.forEach(name => {
+              const opt = document.createElement('option');
+              opt.value = name;
+              opt.textContent = name;
+              select.appendChild(opt);
+          });
+          if (currentProfile && currentProfile.profile_name) {
+              select.value = currentProfile.profile_name;
+          }
+      } catch (error) {
+          console.error('Error loading profiles list:', error);
+      }
+  }
+
+  async function loadProfileByName(name) {
+      try {
+          const response = await fetch('/api/jobseeker/profile?name=' + encodeURIComponent(name));
+          const result = await response.json();
+          if (result.success && result.data) {
+              currentProfile = result.data;
+              resetProfileForm();
+              populateProfileForm(currentProfile);
+              document.getElementById('profileNameInput').value = currentProfile.profile_name || name;
+          } else {
+              showNotification('Profile not found', 'error');
+          }
+      } catch (error) {
+          console.error('Error loading profile:', error);
+          showNotification('Error loading profile', 'error');
+      }
+  }
+
+  function resetProfileForm() {
+      document.getElementById('profileForm').reset();
+      document.getElementById('experienceContainer').innerHTML = '';
+      document.getElementById('educationContainer').innerHTML = '';
+      document.getElementById('projectsContainer').innerHTML = '';
+      document.getElementById('publicationsContainer').innerHTML = '';
+      document.getElementById('extracurricularContainer').innerHTML = '';
+  }
+
+  function newProfile() {
+      currentProfile = null;
+      resetProfileForm();
+      document.getElementById('profileNameInput').value = '';
+      document.getElementById('profileSelect').value = '';
+      addExperienceSection();
+      addEducationSection();
+      showNotification('Started a new profile. Fill it in and Save.', 'success');
   }
 
   function addInitialFormSections() {
@@ -467,6 +569,66 @@
       container.appendChild(section);
   }
 
+  function addPublicationSection(data = null) {
+      const container = document.getElementById('publicationsContainer');
+      const index = container.children.length;
+      const section = document.createElement('div');
+      section.className = 'dynamic-section';
+      section.innerHTML = `
+          <div class="section-header">
+              <h4>Publication ${index + 1}</h4>
+              <button type="button" class="btn btn-small btn-danger" onclick="removeSection(this)">Remove</button>
+          </div>
+          <div class="form-grid">
+              <div class="form-group">
+                  <label>Title</label>
+                  <input type="text" name="publication_title_${index}" value="${data?.title || ''}">
+              </div>
+              <div class="form-group">
+                  <label>Venue / Status</label>
+                  <input type="text" name="publication_venue_${index}" value="${data?.venue || ''}">
+              </div>
+              <div class="form-group full-width">
+                  <label>Description</label>
+                  <textarea name="publication_description_${index}" rows="2">${data?.description || ''}</textarea>
+              </div>
+              <div class="form-group full-width">
+                  <label>URL</label>
+                  <input type="url" name="publication_url_${index}" value="${data?.url || ''}">
+              </div>
+          </div>
+      `;
+      container.appendChild(section);
+  }
+
+  function addExtracurricularSection(data = null) {
+      const container = document.getElementById('extracurricularContainer');
+      const index = container.children.length;
+      const section = document.createElement('div');
+      section.className = 'dynamic-section';
+      section.innerHTML = `
+          <div class="section-header">
+              <h4>Activity ${index + 1}</h4>
+              <button type="button" class="btn btn-small btn-danger" onclick="removeSection(this)">Remove</button>
+          </div>
+          <div class="form-grid">
+              <div class="form-group">
+                  <label>Title / Role</label>
+                  <input type="text" name="extracurricular_title_${index}" value="${data?.title || ''}">
+              </div>
+              <div class="form-group">
+                  <label>Organization</label>
+                  <input type="text" name="extracurricular_org_${index}" value="${data?.organization || ''}">
+              </div>
+              <div class="form-group full-width">
+                  <label>Description</label>
+                  <textarea name="extracurricular_description_${index}" rows="2">${data?.description || ''}</textarea>
+              </div>
+          </div>
+      `;
+      container.appendChild(section);
+  }
+
   function removeSection(button) {
       button.closest('.dynamic-section').remove();
   }
@@ -477,6 +639,8 @@
           document.getElementById('email').value = profile.personal_info.email || '';
           document.getElementById('phone').value = profile.personal_info.phone || '';
           document.getElementById('linkedin').value = profile.personal_info.linkedin || '';
+          document.getElementById('headline').value = profile.personal_info.headline || '';
+          document.getElementById('location').value = profile.personal_info.location || '';
           document.getElementById('address').value = profile.personal_info.address || '';
       }
 
@@ -500,17 +664,28 @@
       if (profile.projects) {
           profile.projects.forEach(proj => addProjectSection(proj));
       }
+
+      if (profile.publications) {
+          profile.publications.forEach(pub => addPublicationSection(pub));
+      }
+
+      if (profile.extracurricular) {
+          profile.extracurricular.forEach(act => addExtracurricularSection(act));
+      }
   }
 
   function collectProfileData() {
       const formData = new FormData(document.getElementById('profileForm'));
 
       const profile = {
+          profile_name: document.getElementById('profileNameInput').value.trim(),
           personal_info: {
               name: formData.get('name'),
               email: formData.get('email'),
               phone: formData.get('phone'),
               linkedin: formData.get('linkedin'),
+              headline: formData.get('headline'),
+              location: formData.get('location'),
               address: formData.get('address')
           },
           summary: formData.get('summary'),
@@ -522,7 +697,9 @@
               languages: formData.get('languages') ? formData.get('languages').split(',').map(s => s.trim()).filter(s => s) : [],
               certifications: formData.get('certifications') ? formData.get('certifications').split(',').map(s => s.trim()).filter(s => s) : []
           },
-          projects: []
+          projects: [],
+          publications: [],
+          extracurricular: []
       };
 
       const experienceContainer = document.getElementById('experienceContainer');
@@ -572,6 +749,31 @@
           }
       });
 
+      const publicationsContainer = document.getElementById('publicationsContainer');
+      Array.from(publicationsContainer.children).forEach((section, index) => {
+          const title = formData.get(`publication_title_${index}`);
+          if (title) {
+              profile.publications.push({
+                  title: title,
+                  venue: formData.get(`publication_venue_${index}`),
+                  description: formData.get(`publication_description_${index}`),
+                  url: formData.get(`publication_url_${index}`)
+              });
+          }
+      });
+
+      const extracurricularContainer = document.getElementById('extracurricularContainer');
+      Array.from(extracurricularContainer.children).forEach((section, index) => {
+          const title = formData.get(`extracurricular_title_${index}`);
+          if (title) {
+              profile.extracurricular.push({
+                  title: title,
+                  organization: formData.get(`extracurricular_org_${index}`),
+                  description: formData.get(`extracurricular_description_${index}`)
+              });
+          }
+      });
+
       return profile;
   }
 
@@ -594,6 +796,7 @@
           if (result.success) {
               currentProfile = result.data;
               showNotification('Profile saved successfully', 'success');
+              loadProfilesList();
           } else {
               showNotification(result.message || 'Failed to save profile', 'error');
           }
@@ -790,7 +993,8 @@
                   content: currentResume.formatted_resume,
                   format: format,
                   profile: currentProfile,
-                  job_description: document.getElementById('jobDescriptionText').value
+                  job_description: document.getElementById('jobDescriptionText').value,
+                  resume_data: currentResume.resume_data
               })
           });
 

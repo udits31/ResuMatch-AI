@@ -9,6 +9,7 @@ try:
     from ..models.resume_generator import ResumeGenerator
     from ..models.matching_engine import ResumeMatcher
     from ..database.db_manager import DatabaseManager
+    from ..database.profile_repository import ProfileRepository
 except ImportError as e:
     print(f"Error importing Job Seeker modules: {e}")
     print(f"Current working directory: {os.getcwd()}")
@@ -25,6 +26,7 @@ class JobSeekerIntegration:
         self.resume_generator = ResumeGenerator()
         self.matcher = ResumeMatcher()
         self.db_manager = DatabaseManager()
+        self.profile_repo = ProfileRepository()
         self.current_analysis = None
         self.current_profile = None
 
@@ -48,7 +50,7 @@ class JobSeekerIntegration:
             }
 
             # Fit analysis against the saved profile (if one exists)
-            profile = self.current_profile or self.profile_manager.load_profile()
+            profile = self.current_profile or self.profile_repo.load()
             if profile:
                 fit = self._compute_fit(profile, job_description)
                 analysis['relevance_score'] = round(fit['overall'] / 100.0, 4)
@@ -91,10 +93,18 @@ class JobSeekerIntegration:
             if isinstance(values, list):
                 parts.extend(values)
         for proj in profile.get('projects', []) or []:
-            parts.append(proj.get('name', ''))
+            parts.append(proj.get('name') or proj.get('title', ''))
             if proj.get('description'):
                 parts.append(proj['description'])
             parts.extend(proj.get('technologies', []) or [])
+        for pub in profile.get('publications', []) or []:
+            parts.append(pub.get('title', ''))
+            if pub.get('description'):
+                parts.append(pub['description'])
+        for act in profile.get('extracurricular', []) or []:
+            parts.append(act.get('title', ''))
+            if act.get('description'):
+                parts.append(act['description'])
         return "\n".join(p for p in parts if p)
 
     def _compute_fit(self, profile, job_description):
@@ -148,11 +158,11 @@ class JobSeekerIntegration:
             suggestions.append("Strong alignment. You look like a great match for this role.")
         return suggestions
 
-    def get_profile(self):
-        """Get current profile data"""
+    def get_profile(self, name=None):
+        """Get a profile by name, or the most recently updated one."""
         try:
-            profile = self.profile_manager.load_profile()
-            
+            profile = self.profile_repo.load(name)
+
             if profile:
                 self.current_profile = profile
                 return {
@@ -176,6 +186,18 @@ class JobSeekerIntegration:
                 'errors': [str(e)]
             }
     
+    def list_profiles(self):
+        """Return the names of all saved profiles."""
+        try:
+            return {
+                'success': True,
+                'message': 'Profiles listed',
+                'data': {'profiles': self.profile_repo.list_names()},
+                'errors': []
+            }
+        except Exception as e:
+            return {'success': False, 'message': 'Error listing profiles', 'data': None, 'errors': [str(e)]}
+
     def create_profile(self, profile_data):
         """Create a new profile"""
         try:
@@ -189,7 +211,11 @@ class JobSeekerIntegration:
                     'errors': errors
                 }
             
-            success = self.profile_manager.create_profile(profile_data)
+            name = (profile_data.get('profile_name')
+                    or (profile_data.get('personal_info', {}) or {}).get('name')
+                    or 'Default')
+            profile_data['profile_name'] = name
+            success = self.profile_repo.save(name, profile_data)
             if success:
                 self.current_profile = profile_data
                 return {
@@ -226,7 +252,11 @@ class JobSeekerIntegration:
                     'errors': errors
                 }
             
-            success = self.profile_manager.update_profile(profile_data)
+            name = (profile_data.get('profile_name')
+                    or (profile_data.get('personal_info', {}) or {}).get('name')
+                    or 'Default')
+            profile_data['profile_name'] = name
+            success = self.profile_repo.save(name, profile_data)
             if success:
                 self.current_profile = profile_data
                 return {
@@ -312,7 +342,7 @@ class JobSeekerIntegration:
                 'errors': [str(e)]
             }
     
-    def export_resume(self, content, format_type, profile=None, job_description=None):
+    def export_resume(self, content, format_type, profile=None, job_description=None, resume_data=None):
         """Export resume in specified format for web download"""
         try:
             import tempfile
@@ -343,10 +373,21 @@ class JobSeekerIntegration:
                 file_data = content.encode('utf-8')
                 content_type = 'text/plain'
             elif format_type == 'pdf':
-                file_data = self._generate_pdf(content)
+                if resume_data:
+                    try:
+                        docx_bytes = self._build_formatted_docx(resume_data)
+                        file_data = self._docx_to_pdf_bytes(docx_bytes)
+                    except Exception as conv_err:
+                        print(f"Word PDF conversion failed, using fallback PDF: {conv_err}")
+                        file_data = self._generate_pdf(content)
+                else:
+                    file_data = self._generate_pdf(content)
                 content_type = 'application/pdf'
             elif format_type == 'docx':
-                file_data = self._generate_docx(content)
+                if resume_data:
+                    file_data = self._build_formatted_docx(resume_data)
+                else:
+                    file_data = self._generate_docx(content)
                 content_type = 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
             else:
                 return {
@@ -440,3 +481,230 @@ class JobSeekerIntegration:
         except Exception as e:
             print(f"DOCX generation error: {e}")
             return content.encode('utf-8')
+
+    def _build_formatted_docx(self, resume_data):
+        """Build a professionally formatted resume .docx from structured resume_data:
+        centered name/contact header, bold underlined section headings, bold entry
+        titles with right-aligned dates, and bulleted achievements."""
+        from io import BytesIO
+        from docx import Document
+        from docx.shared import Pt, Inches, RGBColor
+        from docx.enum.text import WD_TAB_ALIGNMENT, WD_ALIGN_PARAGRAPH
+        from docx.oxml.ns import qn
+        from docx.oxml import OxmlElement
+
+        RIGHT_TAB = Inches(7.3)
+        ACCENT = RGBColor(0x2F, 0x4F, 0x4F)
+
+        doc = Document()
+        for section in doc.sections:
+            section.top_margin = Inches(0.5)
+            section.bottom_margin = Inches(0.6)
+            section.left_margin = Inches(0.6)
+            section.right_margin = Inches(0.6)
+
+        normal = doc.styles['Normal']
+        normal.font.name = 'Calibri'
+        normal.font.size = Pt(11)
+        normal.paragraph_format.space_after = Pt(2)
+
+        def bottom_border(paragraph):
+            pPr = paragraph._p.get_or_add_pPr()
+            pbdr = OxmlElement('w:pBdr')
+            bottom = OxmlElement('w:bottom')
+            bottom.set(qn('w:val'), 'single')
+            bottom.set(qn('w:sz'), '6')
+            bottom.set(qn('w:space'), '2')
+            bottom.set(qn('w:color'), '2F4F4F')
+            pbdr.append(bottom)
+            pPr.append(pbdr)
+
+        def add_heading(text):
+            p = doc.add_paragraph()
+            p.paragraph_format.space_before = Pt(8)
+            p.paragraph_format.space_after = Pt(3)
+            r = p.add_run(text.upper())
+            r.bold = True
+            r.font.color.rgb = ACCENT
+            bottom_border(p)
+
+        def add_title_with_date(title, date=''):
+            p = doc.add_paragraph()
+            p.paragraph_format.space_before = Pt(4)
+            p.paragraph_format.tab_stops.add_tab_stop(RIGHT_TAB, WD_TAB_ALIGNMENT.RIGHT)
+            rt = p.add_run(title)
+            rt.bold = True
+            if date:
+                p.add_run('\t' + date)
+
+        def add_bullet(text):
+            doc.add_paragraph(text, style='List Bullet')
+
+        # Header: name + contact (centered)
+        pi = resume_data.get('personal_info', {}) or {}
+        if pi.get('name'):
+            p = doc.add_paragraph()
+            p.alignment = WD_ALIGN_PARAGRAPH.CENTER
+            p.paragraph_format.space_after = Pt(2)
+            r = p.add_run(pi['name'].upper())
+            r.bold = True
+            r.font.size = Pt(16)
+        if pi.get('headline'):
+            p = doc.add_paragraph()
+            p.alignment = WD_ALIGN_PARAGRAPH.CENTER
+            p.paragraph_format.space_after = Pt(2)
+            r = p.add_run(pi['headline'])
+            r.font.size = Pt(11)
+            r.font.color.rgb = ACCENT
+        contact = [pi.get(f) for f in ['email', 'phone', 'location', 'address', 'linkedin'] if pi.get(f)]
+        if contact:
+            p = doc.add_paragraph(' | '.join(contact))
+            p.alignment = WD_ALIGN_PARAGRAPH.CENTER
+            p.paragraph_format.space_after = Pt(4)
+            for r in p.runs:
+                r.font.size = Pt(10)
+
+        # Summary
+        if resume_data.get('summary'):
+            add_heading('Professional Summary')
+            doc.add_paragraph(resume_data['summary'])
+
+        # Education
+        education = resume_data.get('education', []) or []
+        if education:
+            add_heading('Education')
+            for edu in education:
+                add_title_with_date(edu.get('institution', ''), edu.get('graduation_date', ''))
+                degree = edu.get('degree', '')
+                if edu.get('field'):
+                    degree += (' in ' if degree else '') + edu['field']
+                if edu.get('gpa'):
+                    degree += (' | ' if degree else '') + f"GPA: {edu['gpa']}"
+                if degree:
+                    doc.add_paragraph(degree)
+                    
+        # Work experience
+        work_experience = resume_data.get('work_experience', []) or []
+        if work_experience:
+            add_heading('Work Experience')
+        for exp in work_experience:
+            title = exp.get('position', '')
+            if exp.get('company'):
+                title += (' | ' if title else '') + exp['company']
+            date = ''
+            if exp.get('start_date'):
+                date = exp['start_date'] + ' - ' + (exp.get('end_date') or 'Present')
+            add_title_with_date(title, date)
+            if exp.get('description'):
+                add_bullet(exp['description'])
+            for achievement in (exp.get('achievements') or [])[:4]:
+                add_bullet(achievement)
+
+        # Projects
+        projects = resume_data.get('projects', []) or []
+        if projects:
+            add_heading('Projects')
+            for proj in projects:
+                title = proj.get('name') or proj.get('title') or ''
+                if proj.get('technologies'):
+                    title += (' | ' if title else '') + ', '.join(proj['technologies'][:6])
+                add_title_with_date(title)
+                if proj.get('description'):
+                    add_bullet(proj['description'])
+                link = proj.get('url') or proj.get('github')
+                if link:
+                    doc.add_paragraph(link)
+        # Publications
+        publications = resume_data.get('publications', []) or []
+        if publications:
+            add_heading('Publications')
+            for pub in publications:
+                title = pub.get('title', '')
+                if pub.get('venue'):
+                    title += (' | ' if title else '') + pub['venue']
+                add_title_with_date(title)
+                if pub.get('description'):
+                    add_bullet(pub['description'])
+                if pub.get('url'):
+                    doc.add_paragraph(pub['url'])
+                    
+        # Skills
+        skills = resume_data.get('skills', {}) or {}
+        skill_labels = {
+            'technical': 'Technical',
+            'soft': 'Soft Skills',
+            'languages': 'Languages',
+            'certifications': 'Certifications',
+        }
+        if any(skills.get(k) for k in skill_labels):
+            add_heading('Skills')
+            for key, label in skill_labels.items():
+                values = skills.get(key)
+                if values:
+                    p = doc.add_paragraph(style='List Bullet')
+                    r = p.add_run(label + ': ')
+                    r.bold = True
+                    p.add_run(', '.join(values[:12]))
+
+        # Extra-curricular / Leadership
+        extracurricular = resume_data.get('extracurricular', []) or []
+        if extracurricular:
+            add_heading('Extra-curricular / Leadership')
+            for act in extracurricular:
+                title = act.get('title', '')
+                if act.get('organization'):
+                    title += (' | ' if title else '') + act['organization']
+                add_title_with_date(title)
+                if act.get('description'):
+                    add_bullet(act['description'])
+
+        buffer = BytesIO()
+        doc.save(buffer)
+        buffer.seek(0)
+        return buffer.getvalue()
+
+    def _docx_to_pdf_bytes(self, docx_bytes):
+        """Convert a .docx (bytes) to PDF (bytes) using MS Word via docx2pdf.
+        Initializes COM for the current thread (Flask serves requests off the
+        main thread) and cleans up temp files."""
+        import os
+        import tempfile
+        from docx2pdf import convert
+
+        co_module = None
+        try:
+            import comtypes
+            comtypes.CoInitialize()
+            co_module = comtypes
+        except Exception:
+            try:
+                import pythoncom
+                pythoncom.CoInitialize()
+                co_module = pythoncom
+            except Exception:
+                co_module = None
+
+        tmp_dir = tempfile.mkdtemp()
+        docx_path = os.path.join(tmp_dir, 'resume.docx')
+        pdf_path = os.path.join(tmp_dir, 'resume.pdf')
+        try:
+            with open(docx_path, 'wb') as f:
+                f.write(docx_bytes)
+            convert(docx_path, pdf_path)
+            with open(pdf_path, 'rb') as f:
+                return f.read()
+        finally:
+            try:
+                if co_module:
+                    co_module.CoUninitialize()
+            except Exception:
+                pass
+            for path in (docx_path, pdf_path):
+                try:
+                    os.remove(path)
+                except Exception:
+                    pass
+            try:
+                os.rmdir(tmp_dir)
+            except Exception:
+                pass

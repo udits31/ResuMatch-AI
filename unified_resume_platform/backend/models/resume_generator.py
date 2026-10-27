@@ -51,7 +51,9 @@ class ResumeGenerator:
             "projects": self._generate_projects_section(
                 prioritized_content.get("projects", []),
                 job_analysis
-            )
+            ),
+            "publications": prioritized_content.get("publications", []),
+            "extracurricular": prioritized_content.get("extracurricular", [])
         }
         
         # Ensure resume fits within page limits
@@ -133,9 +135,11 @@ class ResumeGenerator:
             header = []
             if personal_info.get("name"):
                 header.append(personal_info["name"].upper())
-            
+            if personal_info.get("headline"):
+                header.append(personal_info["headline"])
+
             contact_info = []
-            for field in ["email", "phone", "address", "linkedin"]:
+            for field in ["email", "phone", "location", "address", "linkedin"]:
                 if personal_info.get(field):
                     contact_info.append(personal_info[field])
             
@@ -152,6 +156,40 @@ class ResumeGenerator:
             formatted_sections.append("PROFESSIONAL SUMMARY")
             formatted_sections.append("-" * 20)
             formatted_sections.append(summary)
+
+                # Education
+        education = resume_data.get("education", [])
+        if education:
+            formatted_sections.append("EDUCATION")
+            formatted_sections.append("-" * 9)
+            
+            for edu in education:
+                edu_lines = []
+                
+                # Degree and Field
+                degree_line = ""
+                if edu.get("degree"):
+                    degree_line = edu["degree"]
+                if edu.get("field"):
+                    degree_line += f" in {edu['field']}"
+                if degree_line:
+                    edu_lines.append(degree_line)
+                
+                # Institution and Date
+                inst_line = ""
+                if edu.get("institution"):
+                    inst_line = edu["institution"]
+                if edu.get("graduation_date"):
+                    inst_line += f" | {edu['graduation_date']}"
+                if inst_line:
+                    edu_lines.append(inst_line)
+                
+                # GPA (if notable)
+                if edu.get("gpa") and edu["gpa"] >= 3.5:
+                    edu_lines.append(f"GPA: {edu['gpa']}")
+                
+                if edu_lines:
+                    formatted_sections.append("\n".join(edu_lines))
         
         # Work Experience
         work_exp = resume_data.get("work_experience", [])
@@ -205,41 +243,7 @@ class ResumeGenerator:
                     skill_type_formatted = skill_type.replace("_", " ").title()
                     skills_text = ", ".join(skill_list[:8])  # Limit to top 8 skills
                     formatted_sections.append(f"{skill_type_formatted}: {skills_text}")
-        
-        # Education
-        education = resume_data.get("education", [])
-        if education:
-            formatted_sections.append("EDUCATION")
-            formatted_sections.append("-" * 9)
-            
-            for edu in education:
-                edu_lines = []
-                
-                # Degree and Field
-                degree_line = ""
-                if edu.get("degree"):
-                    degree_line = edu["degree"]
-                if edu.get("field"):
-                    degree_line += f" in {edu['field']}"
-                if degree_line:
-                    edu_lines.append(degree_line)
-                
-                # Institution and Date
-                inst_line = ""
-                if edu.get("institution"):
-                    inst_line = edu["institution"]
-                if edu.get("graduation_date"):
-                    inst_line += f" | {edu['graduation_date']}"
-                if inst_line:
-                    edu_lines.append(inst_line)
-                
-                # GPA (if notable)
-                if edu.get("gpa") and edu["gpa"] >= 3.5:
-                    edu_lines.append(f"GPA: {edu['gpa']}")
-                
-                if edu_lines:
-                    formatted_sections.append("\n".join(edu_lines))
-        
+              
         # Projects
         projects = resume_data.get("projects", [])
         if projects:
@@ -264,7 +268,43 @@ class ResumeGenerator:
                 
                 if project_lines:
                     formatted_sections.append("\n".join(project_lines))
-        
+
+        # Publications
+        publications = resume_data.get("publications", [])
+        if publications:
+            formatted_sections.append("PUBLICATIONS")
+            formatted_sections.append("-" * 12)
+            for pub in publications:
+                pub_lines = []
+                title_line = pub.get("title", "")
+                if pub.get("venue"):
+                    title_line += f" | {pub['venue']}"
+                if title_line:
+                    pub_lines.append(title_line)
+                if pub.get("description"):
+                    pub_lines.append(f"• {pub['description']}")
+                if pub.get("url"):
+                    pub_lines.append(pub["url"])
+                if pub_lines:
+                    formatted_sections.append("\n".join(pub_lines))
+
+        # Extra-curricular / Leadership
+        extracurricular = resume_data.get("extracurricular", [])
+        if extracurricular:
+            formatted_sections.append("EXTRA-CURRICULAR / LEADERSHIP")
+            formatted_sections.append("-" * 28)
+            for act in extracurricular:
+                act_lines = []
+                title_line = act.get("title", "")
+                if act.get("organization"):
+                    title_line += f" | {act['organization']}"
+                if title_line:
+                    act_lines.append(title_line)
+                if act.get("description"):
+                    act_lines.append(f"• {act['description']}")
+                if act_lines:
+                    formatted_sections.append("\n".join(act_lines))
+
         return "\n\n".join(formatted_sections)
     
     def _generate_personal_info(self, personal_info: Dict[str, Any]) -> Dict[str, Any]:
@@ -274,7 +314,9 @@ class ResumeGenerator:
             "email": personal_info.get("email", ""),
             "phone": personal_info.get("phone", ""),
             "address": personal_info.get("address", ""),
-            "linkedin": personal_info.get("linkedin", "")
+            "linkedin": personal_info.get("linkedin", ""),
+            "headline": personal_info.get("headline", ""),
+            "location": personal_info.get("location", "")
         }
     
     def _generate_tailored_summary(self, original_summary: str, job_analysis: Dict[str, Any]) -> str:
